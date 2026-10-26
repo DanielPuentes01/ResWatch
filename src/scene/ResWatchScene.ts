@@ -387,93 +387,105 @@ export class ResWatchScene {
 
   private loadAuthenticStlWatch() {
     const loader = new STLLoader();
-    loader.load(
-      '/assets/watch/base.stl',
-      (geometry) => {
-        const posAttr = geometry.getAttribute('position');
-        const count = posAttr.count;
-        const colors = new Float32Array(count * 3);
+    const baseUrl = import.meta.env.BASE_URL || './';
+    const candidateUrls = [
+      `${baseUrl}assets/watch/base.stl`,
+      './public/assets/watch/base.stl',
+      '../public/assets/watch/base.stl',
+    ];
 
-        const cx = this.STL_CENTER.x;
-        const cy = this.STL_CENTER.y;
-        const cz = this.STL_CENTER.z;
-        const nx = this.STL_NORMAL.x;
-        const ny = this.STL_NORMAL.y;
-        const nz = this.STL_NORMAL.z;
+    const tryLoad = (urlIdx: number) => {
+      if (urlIdx >= candidateUrls.length) return;
+      loader.load(
+        candidateUrls[urlIdx],
+        (geometry) => {
+          const posAttr = geometry.getAttribute('position');
+          const count = posAttr.count;
+          const colors = new Float32Array(count * 3);
 
-        const ux = 1.0, uy = 0.0, uz = 0.0;
-        const vx = 0.0, vy = nz, vz = -ny;
+          const cx = this.STL_CENTER.x;
+          const cy = this.STL_CENTER.y;
+          const cz = this.STL_CENTER.z;
+          const nx = this.STL_NORMAL.x;
+          const ny = this.STL_NORMAL.y;
+          const nz = this.STL_NORMAL.z;
 
-        const cStrapDark = new THREE.Color(0x11151c);
-        const cStrapRib = new THREE.Color(0x1b2230);
-        const cCaseSlate = new THREE.Color(0x273c52);
-        const cBezelCyan = new THREE.Color(0x58beee);
-        const cScreenNavy = new THREE.Color(0x091726);
+          const ux = 1.0, uy = 0.0, uz = 0.0;
+          const vx = 0.0, vy = nz, vz = -ny;
 
-        for (let i = 0; i < count; i++) {
-          let x = posAttr.getX(i);
-          let y = posAttr.getY(i);
-          let z = posAttr.getZ(i);
+          const cStrapDark = new THREE.Color(0x11151c);
+          const cStrapRib = new THREE.Color(0x1b2230);
+          const cCaseSlate = new THREE.Color(0x273c52);
+          const cBezelCyan = new THREE.Color(0x58beee);
+          const cScreenNavy = new THREE.Color(0x091726);
 
-          const dx = x - cx;
-          const dy = y - cy;
-          const dz = z - cz;
+          for (let i = 0; i < count; i++) {
+            let x = posAttr.getX(i);
+            let y = posAttr.getY(i);
+            let z = posAttr.getZ(i);
 
-          const dn = dx * nx + dy * ny + dz * nz;
-          const du = dx * ux + dy * uy + dz * uz;
-          const dv = dx * vx + dy * vy + dz * vz;
-          const r = Math.sqrt(du * du + dv * dv);
+            const dx = x - cx;
+            const dy = y - cy;
+            const dz = z - cz;
 
-          let col = cStrapDark;
-          if (dn >= -0.31 && r <= 0.608) {
-            if (dn > -0.045 && r <= 0.542) {
-              col = cScreenNavy;
-              // Slightly recess inner screen vertices of base.stl so our crisp 1024x1024 OLED disc sits cleanly in front
-              if (dn > 0.0) {
-                x -= nx * dn;
-                y -= ny * dn;
-                z -= nz * dn;
-                posAttr.setXYZ(i, x, y, z);
+            const dn = dx * nx + dy * ny + dz * nz;
+            const du = dx * ux + dy * uy + dz * uz;
+            const dv = dx * vx + dy * vy + dz * vz;
+            const r = Math.sqrt(du * du + dv * dv);
+
+            let col = cStrapDark;
+            if (dn >= -0.31 && r <= 0.608) {
+              if (dn > -0.045 && r <= 0.542) {
+                col = cScreenNavy;
+                // Slightly recess inner screen vertices of base.stl so our crisp 1024x1024 OLED disc sits cleanly in front
+                if (dn > 0.0) {
+                  x -= nx * dn;
+                  y -= ny * dn;
+                  z -= nz * dn;
+                  posAttr.setXYZ(i, x, y, z);
+                }
+              } else if (dn > -0.05 && ((r > 0.542 && r <= 0.564) || (r > 0.578 && r <= 0.595))) {
+                col = cBezelCyan;
+              } else {
+                col = cCaseSlate;
               }
-            } else if (dn > -0.05 && ((r > 0.542 && r <= 0.564) || (r > 0.578 && r <= 0.595))) {
-              col = cBezelCyan;
             } else {
-              col = cCaseSlate;
+              const ribWave = Math.sin(z * 38.0 + y * 12.0);
+              col = ribWave > 0.55 ? cStrapRib : cStrapDark;
             }
-          } else {
-            const ribWave = Math.sin(z * 38.0 + y * 12.0);
-            col = ribWave > 0.55 ? cStrapRib : cStrapDark;
+
+            colors[i * 3] = col.r;
+            colors[i * 3 + 1] = col.g;
+            colors[i * 3 + 2] = col.b;
           }
 
-          colors[i * 3] = col.r;
-          colors[i * 3 + 1] = col.g;
-          colors[i * 3 + 2] = col.b;
+          posAttr.needsUpdate = true;
+          geometry.computeVertexNormals();
+          geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+          // Translate and rotate by -Math.PI/2 around X so the watch face points forward (+Z) and upright (+Y)!
+          geometry.translate(this.STL_OFFSET.x, this.STL_OFFSET.y, this.STL_OFFSET.z);
+          geometry.rotateX(this.STL_ROT_X);
+
+          const mat = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.42,
+            metalness: 0.38,
+          });
+
+          const mesh = new THREE.Mesh(geometry, mat);
+          this.watchModelGroup.clear();
+          this.watchModelGroup.add(mesh);
+          this.stlLoaded = true;
+        },
+        undefined,
+        () => {
+          tryLoad(urlIdx + 1);
         }
+      );
+    };
 
-        posAttr.needsUpdate = true;
-        geometry.computeVertexNormals();
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        // Translate and rotate by -Math.PI/2 around X so the watch face points forward (+Z) and upright (+Y)!
-        geometry.translate(this.STL_OFFSET.x, this.STL_OFFSET.y, this.STL_OFFSET.z);
-        geometry.rotateX(this.STL_ROT_X);
-
-        const mat = new THREE.MeshStandardMaterial({
-          vertexColors: true,
-          roughness: 0.42,
-          metalness: 0.38,
-        });
-
-        const mesh = new THREE.Mesh(geometry, mat);
-        this.watchModelGroup.clear();
-        this.watchModelGroup.add(mesh);
-        this.stlLoaded = true;
-      },
-      undefined,
-      () => {
-        // Keep procedural fallback if STL fails
-      }
-    );
+    tryLoad(0);
   }
 
   public setSectorTheme(sectorId: number, mrCameraEnabled: boolean, mrFilter: 'hologram' | 'tactical' | 'virtual') {

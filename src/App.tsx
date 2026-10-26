@@ -1142,7 +1142,14 @@ export function App() {
               </button>
             </div>
             <img
-              src="/assets/watch-reference.jpg"
+              src={`${import.meta.env.BASE_URL || './'}assets/watch-reference.jpg`}
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.fallback) {
+                  target.dataset.fallback = '1';
+                  target.src = './public/assets/watch-reference.jpg';
+                }
+              }}
               alt="Reloj ResWatch Original"
               className="w-full h-56 object-contain rounded-xl bg-white p-2"
             />

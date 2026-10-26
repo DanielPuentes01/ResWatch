@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResWatch MR — Supervivencia Biométrica y Realidad Mixta</title>
+    <script>
+      window.__loadStaticPagesFallback = function () {
+        if (window.__staticFallbackLoaded) return;
+        window.__staticFallbackLoaded = true;
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = './pages-dist/reswatch.css';
+        document.head.appendChild(link);
+
+        var script = document.createElement('script');
+        script.type = 'module';
+        script.src = './pages-dist/reswatch.js';
+        document.body.appendChild(script);
+      };
+    </script>
+    <script type="module" crossorigin src="./assets/reswatch.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.css">
+  </head>
+  <body class="bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div id="root"></div>
+    <script>
+      // Fallback for static GitHub Pages root branch hosting where .tsx is not compiled on the fly
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          window.__loadStaticPagesFallback();
+        }
+      }, 900);
+    </script>
+  </body>
+</html>
